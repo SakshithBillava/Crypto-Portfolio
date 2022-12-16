@@ -6,6 +6,9 @@ from time import sleep
 import smtplib
 from PIL import Image
 import pymongo
+from datetime import datetime
+import pytz
+import time
 
 image = Image.open("D:/HTML CODES/logo.jpg")
 
@@ -23,8 +26,8 @@ def init_connection():
 
 #client = init_connection()
 client = pymongo.MongoClient("mongodb+srv://sakshith2002:admin@cluster0.frpdmtc.mongodb.net/?retryWrites=true&w=majority")
-db = client.test
-
+db = client.MyDB
+collection = db.Transaction
 
 def round_value(input_value):
     Input=input_value.values
@@ -117,9 +120,30 @@ if (st.button("Click here to add new transaction",key = 1, on_click=callback) or
     price_purchased_at = st.number_input("Price purchased at",key=6)
     st.session_state.Price_p_at=price_purchased_at
     date_of_transaction=st.date_input("Date of transaction",key=7)
-    st.session_state.Date_of_transaction=date_of_transaction
+    t = st.session_state.Date_of_transaction=date_of_transaction 
     st.session_state.No_of_coins = st.number_input("Number of coins",key=8)
     
-    #@st.experimental_memo(ttl=600)
-    #def get_data():
+    tz = pytz.timezone("Asia/Kolkata")
+    new_date = t.strftime('%m/%d/%Y')
+
+    item = {
+        "NAME": st.session_state.Name,
+        "SYMBOL": st.session_state.Symbol,
+        "TYPE": st.session_state.Type,
+        "AMOUNT": st.session_state.Amount,
+        "PRICE_PURCHASED_AT":st.session_state.Price_p_at,
+        "DATE_OF_TRANSACTION":new_date,
+        "NO_OF_COINS":st.session_state.No_of_coins
+    }
+    st.session_state.Item = item
+    
+    if "confirm" not in st.session_state:
+        st.session_state.confirm = False
+    def Confirm():
+        st.session_state.confirm = True
+
+    if(st.button("CONFIRM",on_click=Confirm,key=10) or st.session_state.confirm):
+        record = collection.insert_one(item)
+
+
         
