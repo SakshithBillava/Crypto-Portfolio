@@ -9,6 +9,7 @@ import pymongo
 from datetime import datetime
 import pytz
 import time
+from collections import defaultdict
 
 image = Image.open("D:/HTML CODES/logo.jpg")
 
@@ -27,7 +28,8 @@ def init_connection():
 #client = init_connection()
 client = pymongo.MongoClient("mongodb+srv://sakshith2002:admin@cluster0.frpdmtc.mongodb.net/?retryWrites=true&w=majority")
 db = client.MyDB
-collection = db.Transaction
+collection1 = db.Transaction
+collection2 = db.Portfolio
 
 def round_value(input_value):
     Input=input_value.values
@@ -97,12 +99,59 @@ if "Click" not in st.session_state:
 def callback():
     st.session_state.Click = True
 
+def get_portfolio():
+    get_pf = client.MyDB
+    get_item = get_pf.Portfolio.find() 
+    get_item = list(get_item)
+    return get_item
+
+st.session_state.get_pf = get_portfolio()
+st.session_state.get_pf_init = st.session_state.get_pf
+st.session_state.myquery_cost = {"Portfolio_Cost": st.session_state.get_pf[0]['Portfolio_Cost']}
+st.session_state.myquery_value = {"Portfolio_Value": st.session_state.get_pf[0]['Portfolio_Value']}
+st.session_state.myquery_gain = {"Absolute_Gain_Loss": st.session_state.get_pf[0]['Absolute_Gain_Loss']} 
+st.session_state.myquery_pct = {"Gain_Loss_Pctg": st.session_state.get_pf[0]['Gain_Loss_Pctg']}
+
+
+def Update_portfolio():
+    for i in range(len(st.session_state.get_item)-1,len(st.session_state.get_item)):
+        if(len(st.session_state.get_item)==0):
+            break
+        else: 
+            if(st.session_state.get_item[-1]['TYPE']==1):
+                st.session_state.get_pf[0]['Portfolio_Cost'] = st.session_state.get_pf[0]['Portfolio_Cost'] + st.session_state.get_item[-1]['AMOUNT']
+            if(st.session_state.get_item[-1]['TYPE']==2):
+                st.session_state.get_pf[0]['Portfolio_Cost'] = st.session_state.get_pf[0]['Portfolio_Cost'] - st.session_state.get_item[-1]['AMOUNT']
+    
+    return st.session_state.get_pf[0]['Portfolio_Cost']
+
+if "confirm" not in st.session_state:
+    st.session_state.confirm=False
+if "rollup_confirm" not in st.session_state:
+    st.session_state.rollup_confirm=False
+if "rollup_value" not in st.session_state:
+    st.session_state.rollup_value = False
+if "rollup_gain" not in st.session_state:
+    st.session_state.rollup_gain = False
+if "rollup_pct" not in st.session_state:
+    st.session_state.rollup_pct = False
+def Updated():
+    st.session_state.confirm=True
+    st.session_state.Click = False
+    if(st.session_state.confirm==True):
+        collection1.insert_one(item)
+        st.session_state.rollup_confirm=True
+        st.session_state.rollup_value = True
+        st.session_state.rollup_gain = True
+        st.session_state.rollup_pct = True
+        st.session_state.confirm = False
+
+
 if (st.button("Click here to add new transaction",key = 1, on_click=callback) or st.session_state.Click):
     name = st.text_input("Name of the Coin",key=2,placeholder="Name of the coin. Ex:'Ethereum'") 
     st.session_state.Name=name
     symbol = st.text_input("Symbol of the Coin",key=3,placeholder="Ex:'ETH'")
     st.session_state.Symbol=symbol
-
     def Purchase():
         st.session_state.Type=1
 
@@ -139,11 +188,120 @@ if (st.button("Click here to add new transaction",key = 1, on_click=callback) or
     
     if "confirm" not in st.session_state:
         st.session_state.confirm = False
-    def Confirm():
-        st.session_state.confirm = True
+    
+    
+    st.button("CONFIRM",on_click=Updated,key=10)
 
-    if(st.button("CONFIRM",on_click=Confirm,key=10) or st.session_state.confirm):
-        record = collection.insert_one(item)
+def get_data():
+    get_db = client.MyDB
+    get_item = get_db.Transaction.find()
+    get_item = list(get_item)
+    return get_item
+
+st.session_state.get_item = get_data()
+
+#st.session_state.portfolio ={
+#    "Portfolio_Cost": 0,
+#    "Portfolio_Value": 0,
+#    "Absolute_Gain_Loss": 0,
+#    "Gain_Loss_Pctg": 0
+#}
+#record2 = collection2.insert_one(st.session_state.portfolio)
+st.session_state.flag=1
+def Roll_up(process):
+    if(process==1):
+        st.session_state.updated = {"$set": {"Portfolio_Cost": st.session_state.Updated_value}}
+        collection2.update_one(st.session_state.myquery_cost,st.session_state.updated)
+    if(process==2):
+        st.session_state.updated = {"$set": {"Portfolio_Value": st.session_state.total_live_price}}
+        collection2.update_one(st.session_state.myquery_value,st.session_state.updated)
+    if(process==3):
+        st.session_state.updated = {"$set": {"Absolute_Gain_Loss": st.session_state.gain_loss}}
+        collection2.update_one(st.session_state.myquery_gain,st.session_state.updated)
+    if(process==4):
+        st.session_state.updated = {"$set": {"Gain_Loss_Pctg": st.session_state.percent}}
+        collection2.update_one(st.session_state.myquery_pct,st.session_state.updated)
+if(st.session_state.rollup_confirm==True):
+    st.session_state.Updated_value = Update_portfolio()
+    run1 = Roll_up(1) 
+    if(run1):
+        st.session_state.flag = st.session_state.flag + 1
+    st.session_state.rollup_confirm=False
+ 
+def get_symbol():
+    list_of_symbol = []
+    for i in st.session_state.get_item:
+        list_of_symbol.append(i['SYMBOL'])
+    return list_of_symbol
+st.session_state.list_of_symbols = get_symbol()
+
+#print(df.market)
+st.session_state.total_live_price = 0
+for i in range(len(st.session_state.get_item)):
+    if(len(st.session_state.get_item)==0):
+            break
+    else:
+         st.session_state.list_prices_indexes = list(df.market)
+st.session_state.index_of_coins = []
+for k in st.session_state.list_of_symbols:
+    for j in st.session_state.list_prices_indexes:
+        if(k==j):
+            index = list(df.market).index(k)
+            st.session_state.index_of_coins.append(index)
+
+st.session_state.list_of_prices = []
+st.session_state.d={}
+for z in st.session_state.index_of_coins:
+    price = df[['bid']].iloc[z]
+    sym = df[['market']].iloc[z]
+    s = str(sym[0])
+    no_of_coin = 0 
+    if (s not in st.session_state.d.keys()):
+        st.session_state.d[s]=0
+    if(st.session_state.d[s]==1):
+        pass
+    elif(st.session_state.d[s] == 0):
+        for f in st.session_state.get_item:
+            if(f['SYMBOL']==s):
+                no_of_coin = no_of_coin + f['NO_OF_COINS']
+                st.session_state.d[s]=1
+        price_value = no_of_coin * float(price[0])   
+    #for k,v in st.session_state.d.items():
+    #    print(k," : ",v)
+    #print("n",no_of_coin," : ", s)
+        st.session_state.list_of_prices.append(price_value)
+    
+    
+st.session_state.prices = list(st.session_state.list_of_prices)
+
+for i in range(len(st.session_state.prices)):
+    st.session_state.total_live_price = st.session_state.total_live_price + float(st.session_state.prices[i]) 
+
+st.session_state.total_live_price = st.session_state.total_live_price 
+if(st.session_state.rollup_value==True):
+    run2 = Roll_up(2)
+    
+st.session_state.gain_loss =  st.session_state.get_pf[0]['Portfolio_Value'] - st.session_state.get_pf[0]['Portfolio_Cost']
+
+if "f" not in st.session_state:
+    st.session_state.f = False
+if(st.session_state.rollup_gain==True):
+    run3 = Roll_up(3) 
+    st.session_state.f = True
 
 
+if(st.session_state.f):
+    try:
+        st.session_state.gain_loss =  st.session_state.get_pf[0]['Portfolio_Value'] - st.session_state.get_pf[0]['Portfolio_Cost']
+        st.session_state.percent = (st.session_state.gain_loss*100)/st.session_state.get_pf[0]['Portfolio_Cost']
+        st.session_state.percent = st.session_state.percent/100
+        st.session_state.percent = "{:.0%}".format(st.session_state.percent)
+    except ZeroDivisionError as er:
+        pass 
+
+    if(st.session_state.rollup_pct==True):
+        run4 = Roll_up(4)
         
+ 
+    
+       
