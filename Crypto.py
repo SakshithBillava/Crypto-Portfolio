@@ -30,6 +30,7 @@ client = pymongo.MongoClient("mongodb+srv://sakshith2002:admin@cluster0.frpdmtc.
 db = client.MyDB
 collection1 = db.Transaction
 collection2 = db.Portfolio
+collection3 = db.Output
 
 def round_value(input_value):
     Input=input_value.values
@@ -40,6 +41,7 @@ def round_value(input_value):
         a = float(round(val, 8))
     return a
     
+
 col1, col2, col3 = st.columns(3)
 
 col1_selection = st.sidebar.selectbox('Price 1', df.market, list(df.market).index('BTCINR'))
@@ -135,6 +137,9 @@ if "rollup_gain" not in st.session_state:
     st.session_state.rollup_gain = False
 if "rollup_pct" not in st.session_state:
     st.session_state.rollup_pct = False
+if "GoOn" not in st.session_state:
+    st.session_state.GoOn = False
+
 def Updated():
     st.session_state.confirm=True
     st.session_state.Click = False
@@ -144,6 +149,7 @@ def Updated():
         st.session_state.rollup_value = True
         st.session_state.rollup_gain = True
         st.session_state.rollup_pct = True
+        st.session_state.GoOn = True
         st.session_state.confirm = False
 
 
@@ -200,6 +206,13 @@ def get_data():
 
 st.session_state.get_item = get_data()
 
+def get_output():
+    get_db = client.MyDB
+    get_item = get_db.Output.find()
+    get_item = list(get_item)
+    return get_item
+st.session_state.get_op = get_output()
+
 #st.session_state.portfolio ={
 #    "Portfolio_Cost": 0,
 #    "Portfolio_Value": 0,
@@ -248,6 +261,7 @@ for k in st.session_state.list_of_symbols:
         if(k==j):
             index = list(df.market).index(k)
             st.session_state.index_of_coins.append(index)
+print(st.session_state.index_of_coins)
 
 st.session_state.list_of_prices = []
 st.session_state.d={}
@@ -301,7 +315,126 @@ if(st.session_state.f):
 
     if(st.session_state.rollup_pct==True):
         run4 = Roll_up(4)
-        
- 
+
+st.session_state.list_of_sym_in_op = []
+for i in st.session_state.get_op:
+    st.session_state.list_of_sym_in_op.append(i['SymbolOfCoin'])
+
+st.session_state.set_of_symbols_op = set(st.session_state.list_of_sym_in_op)
+print(st.session_state.set_of_symbols_op)
+
+st.session_state.set_of_priceindex = set(st.session_state.index_of_coins)
+#for p in st.session_state.set_of_priceindex:
+#                price = df[['bid']].iloc[p]
+#                sym = df[['market']].iloc[p]
+
+st.session_state.dict_of_no_of_coins = {}
+st.session_state.set_of_symbols = set(st.session_state.list_of_symbols)
+for i in st.session_state.set_of_symbols:
+    coin_count = 0
+    for j in st.session_state.get_item:
+        if(j['TYPE'] == 1):
+            if(i==j['SYMBOL']):
+                coin_count = coin_count + j['NO_OF_COINS']
+                st.session_state.dict_of_no_of_coins[i] = coin_count
+        else:
+            if(i==j['SYMBOL']):
+                coin_count = coin_count - j['NO_OF_COINS']
+                st.session_state.dict_of_no_of_coins[i] = coin_count
+
     
-       
+print(st.session_state.dict_of_no_of_coins)
+
+def Update_Output(CC,CV):
+    st.session_state.updated_cost = {"$set": {"CoinCost": CC}}
+    collection3.update_one(st.session_state.myquery_coincost,st.session_state.updated_cost)
+    st.session_state.updated_value = {"$set": {"CoinValue": CV}}
+    collection3.update_one(st.session_state.myquery_coinvalue,st.session_state.updated_value)
+ 
+if "set_of_symbols_op" not in st.session_state:
+    st.session_state.set_of_symbols_op = set()
+
+#st.session_state.list_of_sym_in_op = []
+#for k in st.session_state.get_op:
+#    st.session_state.list_of_sym_in_op.append(k['SymbolOfCoin'])
+
+#st.session_state.set_of_symbols_op = set(st.session_state.list_of_sym_in_op)
+if "dict_of_updated_cost" not in st.session_state:
+    st.session_state.dict_of_updated_cost = {}
+
+if "dict_of_updated_coin" not in st.session_state:
+    st.session_state.dict_of_updated_coin = {}
+      
+for i in st.session_state.get_op:
+    sym = i['SymbolOfCoin']
+    st.session_state.dict_of_updated_cost[sym] = i['CoinCost']
+
+for i in st.session_state.get_op:
+    sym = i['SymbolOfCoin']
+    st.session_state.dict_of_updated_coin[sym] = i['CoinValue']
+
+def done():
+    for i in st.session_state.get_item:
+        for j in st.session_state.get_op:
+            st.session_state.coincost = 0
+            st.session_state.coinvalue = 0 
+            if(i['SYMBOL'] not in st.session_state.set_of_symbols_op):
+                nameofcoin = i['NAME']
+                symbolofcoin = i['SYMBOL'] 
+                coincost = i['AMOUNT']
+                Index = list(df.market).index(i['SYMBOL'])
+                liveprice = df[['bid']].iloc[Index]
+                #print(liveprice[0]) 
+                #print(st.session_state.dict_of_no_of_coins[symbolofcoin])
+                coinvalue = st.session_state.dict_of_no_of_coins[symbolofcoin] * float(liveprice[0])
+                st.session_state.insert_elem = {
+                    "NameOfCoin": nameofcoin,
+                    "SymbolOfCoin": symbolofcoin,
+                    "CoinCost": coincost, 
+                    "CoinValue": coinvalue
+                }       
+                collection3.insert_one(st.session_state.insert_elem)
+                st.session_state.set_of_symbols_op.add(symbolofcoin)
+                st.session_state.dict_of_updated_cost[symbolofcoin] = coincost
+                st.session_state.dict_of_updated_coin[symbolofcoin] = coinvalue
+            else: 
+                if(i['TYPE']==1):
+                    if(i['SYMBOL'] == j['SymbolOfCoin']):
+                        symbolofcoin = i['SYMBOL']
+                        st.session_state.myquery_coincost = {"CoinCost": st.session_state.dict_of_updated_cost[symbolofcoin]}
+                        st.session_state.coincost = st.session_state.dict_of_updated_cost[symbolofcoin] + i['AMOUNT']
+                        print(i['AMOUNT'],i['SYMBOL'])
+                        Index = list(df.market).index(i['SYMBOL'])
+                        liveprice = df[['bid']].iloc[Index]
+                        st.session_state.coinvalue = st.session_state.dict_of_no_of_coins[symbolofcoin] * float(liveprice[0])
+                        print(j['CoinCost'])
+                        st.session_state.myquery_coinvalue = {"CoinValue": j['CoinValue']}
+                        print("NMJ",st.session_state.coincost)
+                        upd = Update_Output(st.session_state.coincost,st.session_state.coinvalue) 
+                        st.session_state.dict_of_updated_cost[symbolofcoin] = st.session_state.coincost
+                else:
+                    if(i['SYMBOL'] == j['SymbolOfCoin']):
+                        if(i['SYMBOL'] == ""):  
+                            pass
+                        else:  
+                            st.session_state.coincost = j['CoinCost'] - i['AMOUNT']
+                            Index = list(df.market).index(i['SYMBOL'])
+                            liveprice = df[['bid']].iloc[Index]
+                            symbolofcoin = i['SYMBOL']
+                            st.session_state.coinvalue = st.session_state.dict_of_no_of_coins[symbolofcoin] * float(liveprice[0])
+                            st.session_state.myquery_coincost = {"CoinCost": j['CoinCost']}
+                            st.session_state.myquery_coinvalue = {"CoinValue": j['CoinValue']}
+                            upd = Update_Output(st.session_state.coincost,st.session_state.coinvalue)
+
+if(st.session_state.GoOn==True):
+    goForIt = done()
+    st.session_state.GoOn = False
+
+st.subheader("**CURRENT STATUS**")
+col10,col11,col12,col13 = st.columns(4)                
+    
+col10.metric("PORTFOLIO COST" , st.session_state.get_pf[0]['Portfolio_Cost'] )  
+col11.metric("PORTFOLIO VALUE", round(st.session_state.get_pf[0]['Portfolio_Value'],2))
+col12.metric("GAIN/LOSS", st.session_state.get_pf[0]['Absolute_Gain_Loss']) 
+col13.metric("GAIN/LOSS PERCENTAGE", st.session_state.get_pf[0]['Gain_Loss_Pctg']) 
+ 
