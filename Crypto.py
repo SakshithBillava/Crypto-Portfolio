@@ -50,9 +50,9 @@ col1, col2, col3 = st.columns(3)
 col1_selection = st.sidebar.selectbox('Price 1', df.market, list(df.market).index('BTCINR'))
 col2_selection = st.sidebar.selectbox('Price 2', df.market, list(df.market).index('ETHINR'))
 col3_selection = st.sidebar.selectbox('Price 3', df.market, list(df.market).index('GALAINR'))
-col4_selection = st.sidebar.selectbox('Price 4', df.market, list(df.market).index('DOGEBUSD') )
-col5_selection = st.sidebar.selectbox('Price 5', df.market, list(df.market).index('SHIBBUSD') )
-col6_selection = st.sidebar.selectbox('Price 6', df.market, list(df.market).index('PHBBTC') )
+col4_selection = st.sidebar.selectbox('Price 4', df.market, list(df.market).index('ROSEINR') )
+col5_selection = st.sidebar.selectbox('Price 5', df.market, list(df.market).index('CHRINR') )
+col6_selection = st.sidebar.selectbox('Price 6', df.market, list(df.market).index('BNBINR') )
 col7_selection = st.sidebar.selectbox('Price 7', df.market, list(df.market).index('SOLINR') )
 col8_selection = st.sidebar.selectbox('Price 8', df.market, list(df.market).index('ATOMINR') )
 col9_selection = st.sidebar.selectbox('Price 9', df.market, list(df.market).index('BUSDINR') )
@@ -159,8 +159,9 @@ def Updated():
 if (st.button("Click here to add new transaction",key = 1, on_click=callback) or st.session_state.Click):
     name = st.text_input("Name of the Coin",key=2,placeholder="Name of the coin. Ex:'Ethereum'") 
     st.session_state.Name=name
-    symbol = st.text_input("Symbol of the Coin",key=3,placeholder="Ex:'ETH'")
-    st.session_state.Symbol=symbol
+    #symbol = st.text_input("Symbol of the Coin",key=3,placeholder="Ex:'ETH'")
+    st.session_state.symbol = st.selectbox("Select the SYMBOL", df.market, list(df.market).index('BTCINR'))
+    st.session_state.Symbol=st.session_state.symbol
     def Purchase():
         st.session_state.Type=1
 
@@ -435,17 +436,24 @@ col12.metric("GAIN/LOSS", st.session_state.get_pf[0]['Absolute_Gain_Loss'])
 col13.metric("GAIN/LOSS PERCENTAGE",st.session_state.get_pf[0]['Gain_Loss_Pctg']) 
 
 st.session_state.prices_of_coins = {}
+st.session_state.name = []
+st.session_state.value = []
 for i in range(1,len(st.session_state.get_op)):
-    st.session_state.prices_of_coins[st.session_state.get_op[i]['SymbolOfCoin']] = st.session_state.get_op[i]['CoinValue']
+    st.session_state.name.append(st.session_state.get_op[i]['SymbolOfCoin'])
+    st.session_state.value.append(st.session_state.get_op[i]['CoinValue'])
+    st.session_state.prices_of_coins['NAME OF THE COIN']=st.session_state.name
+    st.session_state.prices_of_coins['CURRENT VALUE']=st.session_state.value
 
-#for k,v in st.session_state.prices_of_coins.items():
-#    print(k," : ",v)
+ 
+st.session_state.prices_of_coins11 = {}
+for i in range(1,len(st.session_state.get_op)):
+    st.session_state.prices_of_coins11[st.session_state.get_op[i]['SymbolOfCoin']] = st.session_state.get_op[i]['CoinValue']
 labels = []
 sizes = []
-for i,j in st.session_state.prices_of_coins.items():
+for i,j in st.session_state.prices_of_coins11.items():
     labels.append(i)
     sizes.append(j)
-
+ 
 #fig1, ax1 = plt.subplots()
 #fig = ax1.pie(sizes, labels=labels,shadow=True, startangle=90)
 
@@ -453,11 +461,19 @@ for i,j in st.session_state.prices_of_coins.items():
 
 #st.pyplot(fig1)
 
-col111,col112 = st.columns(2)
+col111 = st.columns(1)
 fig1 = px.pie(values=sizes,names=labels,hover_name=labels)
 fig1.update_layout(margin = dict(l=1,r=1,b=1,t=1),width=400,height=400 ,font=dict(color='#383635',size=15))
-col111.write(fig1)
+st.write(fig1)
 
-new_df = pd.DataFrame.from_dict(st.session_state.prices_of_coins.items())
-fig2 = st.bar_chart(st.session_state.prices_of_coins.items()[0],width=400,height=400)
-col112.write(fig2)    
+#new_df = pd.DataFrame.from_dict(st.session_state.prices_of_coins.items())
+#new_df.rename(columns = {0: 'NAME OF THE COIN'},inplace=True)
+#new_df.rename(columns = {1: 'CURRENT VALUE'},inplace=True)
+#print(new_df['CURRENT VALUE'])
+#fig2 = plt.bar(range(len(st.session_state.prices_of_coins)), sizes, tick_label=labels)
+try:
+    new_df = pd.DataFrame(st.session_state.prices_of_coins)
+    new_df = new_df.set_index("NAME OF THE COIN")
+    fig2 = st.bar_chart(new_df,height=400,width=400)
+except KeyError as err:
+    pass
