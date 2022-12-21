@@ -11,7 +11,8 @@ import pytz
 import time
 from collections import defaultdict
 import matplotlib.pyplot as plt
-
+import plotly.express as px
+import seaborn as sns 
 
 image = Image.open("D:/HTML CODES/logo.jpg")
 
@@ -445,8 +446,18 @@ for i,j in st.session_state.prices_of_coins.items():
     labels.append(i)
     sizes.append(j)
 
-fig1, ax1 = plt.subplots()
-ax1.pie(sizes, labels=labels,shadow=True, startangle=90)
-ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+#fig1, ax1 = plt.subplots()
+#fig = ax1.pie(sizes, labels=labels,shadow=True, startangle=90)
 
-st.pyplot(fig1)
+#ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+#st.pyplot(fig1)
+
+col111,col112 = st.columns(2)
+fig1 = px.pie(values=sizes,names=labels,hover_name=labels)
+fig1.update_layout(margin = dict(l=1,r=1,b=1,t=1),width=400,height=400 ,font=dict(color='#383635',size=15))
+col111.write(fig1)
+
+new_df = pd.DataFrame.from_dict(st.session_state.prices_of_coins.items())
+fig2 = st.bar_chart(st.session_state.prices_of_coins.items()[0],width=400,height=400)
+col112.write(fig2)    
